@@ -19,146 +19,84 @@ condition = [[4, 6, 6, 2, 9, 10, 3, 10, 6, 3, 9, 3],
              [ 5, 4, 6, 1, 1, 6, 3, 1, 3, 8, 2, 2],
              [ 4, 2, 5, 1, 1, 5, 3, 1, 2, 2, 2, 2],
              [ 1, 2, 5, 1, 1, 4, 3, 1, 2, 2, 1, 2]]
-#виконуємо порівняння двох альтернатив
-def compare_alternatives (alternative1, alternative2):
-    comparison_result = np.arange(len(alternative1))
-    for i in range(0, len(alternative1)):
-        if alternative1[i] > alternative2[i]:
-            comparison_result[i] = 1
-            continue
-        elif alternative1[i] < alternative2[i]:
-            comparison_result[i] = -1
-            continue
-        elif alternative1[i] == alternative2[i]:
-            comparison_result[i] = 0
-    return comparison_result
 
-#формуємо множину векторів сигма попарним порівнянням альтернатив
-def sigma_matrix(matrix):
-    alternatives = np.array(matrix)
-    result = [[0]*20 for i in range(20)]
-    for i in range(0, 20):
-        for j in range(0, 20):
-            result[i][j] = compare_alternatives(alternatives[i], alternatives[j])
+# пошук відношення Подиновського
+def podynovskiy(matrix):
+    # сортування за спаданням
+    fi_a = fi_alternatives(matrix)
+    # формування сигма побудованих для фі(аі)
+    sv = sigma_matrix(fi_a)
+    # відношення Парето для множини фі(аі)
+    result = pareto(sv)
+
+    f = open("task5.txt", "w")
+    f.write(" 5" + '\n')
+    for i in range(0, len(result)):
+        for j in range(0, len(result)):
+            f.write(" {} ".format(result[i][j]))
+        f.write('\n')
+    f.close()
     return result
 
-SV = sigma_matrix(condition)
+# пошук відношення Березовського
+def berezovskiy():
+    # Pb1, Ib1, Nb1
+    pb1 = [[0] * 20 for i in range(20)]
+    ib1 = [[0] * 20 for i in range(20)]
+    nb1 = [[0] * 20 for i in range(20)]
+    result = [[0] * 20 for i in range(20)]
+    # розбиваємо критерії на класи
+    class1, class2, class3 = divide_on_classes(SV)
+    pareto1 = np.array(pareto(class1))
+    pareto2 = np.array(pareto(class2))
+    pareto3 = np.array(pareto(class3))
+    # виділення симетричної, асиметричної та непорівнюваної частини
+    # частини першої ітерації
+    i1 = find_I(pareto1)
+    p1 = find_P(pareto1)
+    n1 = find_N(pareto1)
+    # частини другої ітерації
+    i2 = find_I(pareto2)
+    p2 = find_P(pareto2)
+    # частини третьої ітерації
+    i3 = find_I(pareto3)
+    p3 = find_P(pareto3)
 
-
-# симетрична частина
-def find_I(r):
-    return (r == r.T) * r
-
-
-# асиметрична частина
-def find_P(r):
-    return r - find_I(r)
-
-
-# відношення непорівнюваності
-def find_N(r):
-    return (r == r.T) - find_I(r)
-
-
-# найбільші по Р за домінуванням
-def domination_max_p(matrix):
-    matrix = np.array(matrix)
-    max_alternatives = []
-    for i in range(0, len(matrix)):
-        if matrix[i][i] == 0 and matrix[i].sum() == len(matrix) - 1:
-            max_alternatives.append(i)
-    return max_alternatives
-
-
-# найбільші по R за домінуванням
-def domination_max_r(matrix):
-    matrix = np.array(matrix)
-    max_alternatives = []
-    strong_max = []
-    for i in range(0, len(matrix)):
-        if matrix[i].sum() == len(matrix):
-            max_alternatives.append(i)
-            if matrix[:, i].sum() == 1:
-                strong_max.append(i)
-    return max_alternatives, strong_max
-
-
-# максимальні по Р за блокуванням
-def block_max_p(matrix):
-    matrix = np.array(matrix)
-    max_alternatives = []
-    for i in range(0, len(matrix)):
-        if matrix[:, i].sum() == 0:
-            max_alternatives.append(i)
-    return max_alternatives
-
-
-# максимальні по R за блокуванням
-def block_max_r(matrix):
-    matrix = np.array(matrix)
-    symmetric = find_I(matrix)
-    max_alternatives = []
-    strong_max = []
-    for i in range(0, len(matrix)):
-        if np.any(np.array_equal(matrix[:, i], symmetric[:, i]) == False) == False:
-            max_alternatives.append(i)
-            if matrix[:, i].sum() == 1 and matrix[i][i] == 1:
-                strong_max.append(i)
-    return max_alternatives, strong_max
-
-
-# перевірка частини на симетричність
-def check_is_symetric(matrix):
-    symmetric = find_I(np.array(matrix))
-    is_sum_positive = False
-    for i in range(0, len(symmetric)):
-        if symmetric[i].sum() > 0:
-            is_sum_positive = True
-            break
-    return is_sum_positive
-
-#вивід максимальних та строго максимальних елементів
-def print_max_alternative(matrix):
-    if check_is_symetric(matrix):
-        m, sm = domination_max_r(matrix)
-        if len(m)>0:
-            print("Найбільші по R: {}".format(m))
-            print("Строго найбільші по R: {}".format(sm))
-        else:
-            m, sm = block_max_r(matrix)
-            print("Максимальні по R: {}".format(m))
-            print("Строго максимальні по R: {}".format(sm))
-    else:
-        if len(domination_max_p(matrix))>0:
-            print("Найбільший по Р: {}".format(domination_max_p(matrix)))
-        else:
-            print("Максимальні по Р: {}".format(block_max_p(matrix)))
-
-#перевірка елементів сигма-масиву
-def pareto_check(array):
-    check = np.array(array)
-    all_elements_not_negative = True
-    for i in range (0, len(check)):
-        #усі елементи сигма-вектора невід'ємні
-        if check[i]>=0:
-            pass
-        else:
-            all_elements_not_negative = False
-    if all_elements_not_negative:
-        return 1
-    else:
-        all_elements_not_negative = True
-        for i in range (0, len(check)):
-            #усі елементи сигма-вектора недодатні
-            if check[i]<=0:
-                pass
-            else:
-                all_elements_not_negative = False
-        if all_elements_not_negative:
-            return 2
-        else:
-            #сигма вектор містить як від'ємні, так і невід'ємні компоненти
-            return 3
+    for i in range(0, len(result)):
+        for j in range(0, len(result)):
+            if p2[i][j] == 1 and p2[i][j] == p1[i][j]:
+                pb1[i][j] = 1
+            if p2[i][j] == 1 and p2[i][j] == n1[i][j]:
+                pb1[i][j] = 1
+            if i2[i][j] == 1 and i2[i][j] == p1[i][j]:
+                pb1[i][j] = 1
+            if p2[i][j] == 1 and p2[i][j] == i1[i][j]:
+                pb1[i][j] = 1
+            if i2[i][j] == 1 and i2[i][j] == i1[i][j]:
+                ib1[i][j] = 1
+    for i in range(0, len(result)):
+        for j in range(0, len(result)):
+            if pb1[i][j] == 0 and ib1[i][j] == 0:
+                nb1[i][j] == 1
+    # порівняння частин
+    for i in range(0, len(result)):
+        for j in range(0, len(result)):
+            if p3[i][j] == 1 and p3[i][j] == pb1[i][j]:
+                result[i][j] = 1
+            if p3[i][j] == 1 and p3[i][j] == nb1[i][j]:
+                result[i][j] = 1
+            if i3[i][j] == 1 and i3[i][j] == pb1[i][j]:
+                result[i][j] = 1
+            if p3[i][j] == 1 and p3[i][j] == ib1[i][j]:
+                result[i][j] = 1
+    f = open("task4.txt", "w")
+    f.write(" 4" + '\n')
+    for i in range(0, len(result)):
+        for j in range(0, len(result)):
+            f.write(" {} ".format(result[i][j]))
+        f.write('\n')
+    f.close()
+    return result
 
 #пошук відношення парето
 def pareto(sigma_matrix):
@@ -169,17 +107,14 @@ def pareto(sigma_matrix):
     for i in range(0, len(matrix)):
         for j in range(i+1, len(matrix)):
             flag = pareto_check(matrix[i][j])
-            # якщо елементи вектора невід'ємні - пара альтернатив належить відношенню, симетрична не належить
             if flag == 1:
                 result[i][j] = 1
                 result[j][i] = 0
                 continue
-            # якщо елементи вектора недодатні - пара альтернатив не належить відношенню, симетрична належить
             elif flag == 2:
                 result[i][j] = 0
                 result[j][i] = 1
                 continue
-            # інакше відношення та симетричне йому не належать множині
             elif flag == 3:
                 result[i][j] = 0
                 result[j][i] = 0
@@ -191,6 +126,7 @@ def pareto(sigma_matrix):
         f.write('\n')
     f.close()
     return result
+
 #пошук відношення мажоритарності
 def majority(sigma_matrix):
     matrix = np.array(sigma_matrix)
@@ -216,25 +152,6 @@ def majority(sigma_matrix):
         f.write('\n')
     f.close()
     return result
-
-#k6>k9>k1>k8>k7>k4>k2>k11>k10>k12>k5>k3
-
-# строге впорядкування критеріїв
-def sort_strong(alternative):
-    sorted = np.arange(len(alternative))
-    order = np.array([ 5, 8, 0, 7, 6, 3, 1, 10, 9, 11, 4, 2])
-    for i in range (0, len(alternative)):
-        sorted[i]=alternative[order[i]]
-    return sorted
-
-# впорядкування критеріїв
-def sort_sigma(sigma_matrix):
-    matrix = np.array(sigma_matrix)
-    sorted_matrix = [[0]*20 for i in range(20)]
-    for i in range(0,len(matrix)):
-        for j in range(0,len(matrix)):
-            sorted_matrix[i][j] = sort_strong(matrix[i][j])
-    return sorted_matrix
 
 # пошук лексикографічного відношення
 def lexicographic(matrix):
@@ -265,6 +182,154 @@ def lexicographic(matrix):
     f.close()
     return result
 
+# найбільші по Р за домінуванням
+def domination_max_p(matrix):
+    matrix = np.array(matrix)
+    max_alternatives = []
+    for i in range(0, len(matrix)):
+        if matrix[i][i] == 0 and matrix[i].sum() == len(matrix) - 1:
+            max_alternatives.append(i)
+    return max_alternatives
+
+# найбільші по R за домінуванням
+def domination_max_r(matrix):
+    matrix = np.array(matrix)
+    max_alternatives = []
+    strong_max = []
+    for i in range(0, len(matrix)):
+        if matrix[i].sum() == len(matrix):
+            max_alternatives.append(i)
+            if matrix[:, i].sum() == 1:
+                strong_max.append(i)
+    return max_alternatives, strong_max
+
+# максимальні по Р за блокуванням
+def block_max_p(matrix):
+    matrix = np.array(matrix)
+    max_alternatives = []
+    for i in range(0, len(matrix)):
+        if matrix[:, i].sum() == 0:
+            max_alternatives.append(i)
+    return max_alternatives
+
+# максимальні по R за блокуванням
+def block_max_r(matrix):
+    matrix = np.array(matrix)
+    symmetric = find_I(matrix)
+    max_alternatives = []
+    strong_max = []
+    for i in range(0, len(matrix)):
+        if np.any(np.array_equal(matrix[:, i], symmetric[:, i]) == False) == False:
+            max_alternatives.append(i)
+            if matrix[:, i].sum() == 1 and matrix[i][i] == 1:
+                strong_max.append(i)
+    return max_alternatives, strong_max
+
+#порівняння двох альтернатив
+def compare_alternatives (alternative1, alternative2):
+    comparison_result = np.arange(len(alternative1))
+    for i in range(0, len(alternative1)):
+        if alternative1[i] > alternative2[i]:
+            comparison_result[i] = 1
+            continue
+        elif alternative1[i] < alternative2[i]:
+            comparison_result[i] = -1
+            continue
+        elif alternative1[i] == alternative2[i]:
+            comparison_result[i] = 0
+    return comparison_result
+
+#пошук сигма, попарні порівняння альтернатив
+def sigma_matrix(matrix):
+    alternatives = np.array(matrix)
+    result = [[0]*20 for i in range(20)]
+    for i in range(0, 20):
+        for j in range(0, 20):
+            result[i][j] = compare_alternatives(alternatives[i], alternatives[j])
+    return result
+
+SV = sigma_matrix(condition)
+
+# виділення симетричної частини
+def find_I(r):
+    return (r == r.T) * r
+
+# виділення асиметричної частини
+def find_P(r):
+    return r - find_I(r)
+
+# виділення непорівнюваної частини
+def find_N(r):
+    return (r == r.T) - find_I(r)
+
+# перевірка частини на симетричність
+def check_is_symetric(matrix):
+    symmetric = find_I(np.array(matrix))
+    is_sum_positive = False
+    for i in range(0, len(symmetric)):
+        if symmetric[i].sum() > 0:
+            is_sum_positive = True
+            break
+    return is_sum_positive
+
+#вивід максимальних та найбільших елементів
+def print_optimal_alternative(matrix):
+    if check_is_symetric(matrix):
+        m, sm = domination_max_r(matrix)
+        if len(m)>0:
+            print("Найбільші по R: {}".format(m))
+            print("Строго найбільші по R: {}".format(sm))
+        else:
+            m, sm = block_max_r(matrix)
+            print("Максимальні по R: {}".format(m))
+            print("Строго максимальні по R: {}".format(sm))
+    else:
+        if len(domination_max_p(matrix))>0:
+            print("Найбільший по Р: {}".format(domination_max_p(matrix)))
+        else:
+            print("Максимальні по Р: {}".format(block_max_p(matrix)))
+
+#перевірка елементів сигма-масиву
+def pareto_check(array):
+    check = np.array(array)
+    all_elements_not_negative = True
+    for i in range (0, len(check)):
+        if check[i]>=0:
+            pass
+        else:
+            all_elements_not_negative = False
+    if all_elements_not_negative:
+        return 1
+    else:
+        all_elements_not_negative = True
+        for i in range (0, len(check)):
+            if check[i]<=0:
+                pass
+            else:
+                all_elements_not_negative = False
+        if all_elements_not_negative:
+            return 2
+        else:
+            return 3
+
+#k6>k9>k1>k8>k7>k4>k2>k11>k10>k12>k5>k3
+
+# строге впорядкування критеріїв
+def sort_strong(alternative):
+    sorted = np.arange(len(alternative))
+    order = np.array([ 5, 8, 0, 7, 6, 3, 1, 10, 9, 11, 4, 2])
+    for i in range (0, len(alternative)):
+        sorted[i]=alternative[order[i]]
+    return sorted
+
+# упорядкування критеріїв
+def sort_sigma(sigma_matrix):
+    matrix = np.array(sigma_matrix)
+    sorted_matrix = [[0]*20 for i in range(20)]
+    for i in range(0,len(matrix)):
+        for j in range(0,len(matrix)):
+            sorted_matrix[i][j] = sort_strong(matrix[i][j])
+    return sorted_matrix
 
 # {k1,k8,k10,k11} < {k2,k12} < {k3,k4,k5,k6,k7,k9}
 
@@ -288,69 +353,6 @@ def divide_on_classes(sigma_matrix):
 
     return class1, class2, class3
 
-# пошук відношення Березовського
-def berezovskiy():
-    # Pb1, Ib1, Nb1
-    pb1 = [[0] * 20 for i in range(20)]
-    ib1 = [[0] * 20 for i in range(20)]
-    nb1 = [[0] * 20 for i in range(20)]
-    result = [[0] * 20 for i in range(20)]
-    # розбиваємо критерії на класи
-    c1, c2, c3 = divide_on_classes(SV)
-    pareto1 = np.array(pareto(c1))
-    pareto2 = np.array(pareto(c2))
-    pareto3 = np.array(pareto(c3))
-    # виділення симетричної, асиметричнох та непорівнюваної частини відношення Парето
-    # I01, P01, N01
-    i1 = find_I(pareto1)
-    p1 = find_P(pareto1)
-    n1 = find_N(pareto1)
-    # I02, P02, N02
-    i2 = find_I(pareto2)
-    p2 = find_P(pareto2)
-    n2 = find_N(pareto2)
-    # I03, P03, N03
-    i3 = find_I(pareto3)
-    p3 = find_P(pareto3)
-    n3 = find_N(pareto3)
-
-    # пошук Pb1, Ib1, Nb1
-    for i in range(0, len(result)):
-        for j in range(0, len(result)):
-            if p2[i][j] == 1 and p2[i][j] == p1[i][j]:
-                pb1[i][j] = 1
-            if p2[i][j] == 1 and p2[i][j] == n1[i][j]:
-                pb1[i][j] = 1
-            if i2[i][j] == 1 and i2[i][j] == p1[i][j]:
-                pb1[i][j] = 1
-            if p2[i][j] == 1 and p2[i][j] == i1[i][j]:
-                pb1[i][j] = 1
-            if i2[i][j] == 1 and i2[i][j] == i1[i][j]:
-                ib1[i][j] = 1
-    for i in range(0, len(result)):
-        for j in range(0, len(result)):
-            if pb1[i][j] == 0 and ib1[i][j] == 0:
-                nb1[i][j] == 1
-    # порівняння I03, P03, N03 з Pb1, Ib1, Nb1
-    for i in range(0, len(result)):
-        for j in range(0, len(result)):
-            if p3[i][j] == 1 and p3[i][j] == pb1[i][j]:
-                result[i][j] = 1
-            if p3[i][j] == 1 and p3[i][j] == nb1[i][j]:
-                result[i][j] = 1
-            if i3[i][j] == 1 and i3[i][j] == pb1[i][j]:
-                result[i][j] = 1
-            if p3[i][j] == 1 and p3[i][j] == ib1[i][j]:
-                result[i][j] = 1
-    f = open("task4.txt", "w")
-    f.write(" 4" + '\n')
-    for i in range(0, len(result)):
-        for j in range(0, len(result)):
-            f.write(" {} ".format(result[i][j]))
-        f.write('\n')
-    f.close()
-    return result
-
 # сортування критеріїв за спаданням
 def fi_alternatives(matrix):
     alternatives = np.array(matrix)
@@ -360,33 +362,13 @@ def fi_alternatives(matrix):
         alternatives[i] = alternative
     return alternatives
 
-# пошук відношення Подиновського
-def podynovskiy(matrix):
-    # сортування за спаданням
-    fi_a = fi_alternatives(matrix)
-    # формування сигма побудованих для фі(аі)
-    sv = sigma_matrix(fi_a)
-    # відношення Парето для множини фі(аі)
-    result = pareto(sv)
-    for i in range(0, len(result)):
-        print(result[i])
-
-    f = open("task5.txt", "w")
-    f.write(" 5" + '\n')
-    for i in range(0, len(result)):
-        for j in range(0, len(result)):
-            f.write(" {} ".format(result[i][j]))
-        f.write('\n')
-    f.close()
-    return result
-
-print_max_alternative(pareto(SV))
+print_optimal_alternative(pareto(SV))
 pareto(SV)
-print_max_alternative(majority(SV))
+print_optimal_alternative(majority(SV))
 majority(SV)
-print_max_alternative(lexicographic(sort_sigma(SV)))
+print_optimal_alternative(lexicographic(sort_sigma(SV)))
 lexicographic(sort_sigma(SV))
-print_max_alternative(berezovskiy())
+print_optimal_alternative(berezovskiy())
 berezovskiy()
-print_max_alternative(podynovskiy(condition))
+print_optimal_alternative(podynovskiy(condition))
 podynovskiy(condition)
